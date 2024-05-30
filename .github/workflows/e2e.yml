@@ -1,0 +1,65 @@
+name: Run Detox Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    # paths:
+    #   - 'package.json'
+
+jobs:
+  detox-tests-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+      - uses: actions/setup-node@v3
+      - run: yarn
+      - name: Install Detox CLI
+        run: yarn global add detox-cli
+      - name: Install Android SDK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          script: cd android && ./gradlew connectedCheck
+          api-level: 30
+          target: default
+          arch: x86_64
+          profile: Nexus 6
+          emulator-options: -no-window
+
+      # - name: Start emulator
+      #   run: adb wait-for-device
+
+      - name: Build Android app for Detox tests
+        run: yarn e2e:android:build
+
+      - name: Run Detox tests
+        run: yarn e2e:android:test
+
+  detox-tests-ios:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Select Xcode 15.1
+        run: ls /Applications/ && sudo xcode-select -switch /Applications/Xcode_15.1.app # Switch Xcode version
+      - name: Install iOS Dependencies
+        run: brew tap wix/brew
+      - run: brew install applesimutils
+      - uses: actions/setup-node@v3
+      - run: yarn
+      - name: Install Detox CLI
+        run: yarn global add detox-cli
+      - run: npx pod-install
+
+      - name: Build iOS app
+        run: yarn e2e:ios:build
+
+      - name: Run Detox tests
+        run: yarn e2e:ios:test
